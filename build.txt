@@ -1,0 +1,3 @@
+displayName = Test Mod
+author = Waterwolf9910
+version = 0.1
