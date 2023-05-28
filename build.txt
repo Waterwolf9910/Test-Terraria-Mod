@@ -1,3 +1,7 @@
 displayName = Test Mod
 author = Waterwolf9910
-version = 0.1
+version = 0.1.0
+includePDB = true
+homepage = https://waterwolfies.com
+includeSource = true
+side = NoSync
