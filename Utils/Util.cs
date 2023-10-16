@@ -1,18 +1,17 @@
 ﻿
+using Microsoft.Xna.Framework.Input;
+using Terraria;
+
 namespace TestMod.Utils {
-    public class Util {
+    public static class Util {
 
-        private static bool DelayVar = true;
-        public static bool Delay(double seconds) {
-            async static Task Loop() {
-                await Task.Run(() => { while (DelayVar) { } });
-                DelayVar = true;
+        public static bool IsKeyDown(Keys key) {
+            if (Main.dedServ) {
+                return false;
             }
-            return Loop().Wait(TimeSpan.FromSeconds(seconds));
+
+            return Main.keyState.IsKeyDown(key) && !Main.oldKeyState.IsKeyDown(key);
         }
 
-        public static void StopDelay() {
-            DelayVar = false;
-        }
     }
 }

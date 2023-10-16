@@ -37,7 +37,6 @@
     <None Include="C:\Users\water\Documents\My Games\Terraria\tModLoader\ModSources\TestMod\.editorconfig" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="UI\Elements\" />
     <Folder Include="UI\Properties\" />
   </ItemGroup>
 </Project>

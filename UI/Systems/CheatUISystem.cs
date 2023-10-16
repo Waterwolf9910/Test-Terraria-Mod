@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Terraria;
 using Terraria.ModLoader;
 using Terraria.UI;
+using TestMod.UI.Common;
 using TestMod.UI.States;
 
 namespace TestMod.UI.Systems {
@@ -53,6 +54,16 @@ namespace TestMod.UI.Systems {
                 return;
             }
             CheatInterface.Update(gameTime);
+        }
+
+        public override void PostUpdateInput() {
+            if (Main.dedServ) {
+                return;
+            }
+            base.PostUpdateInput();
+            if (CheatInterface?.CurrentState is BaseUIState state && state != null) {
+                state.PostUpdateInput(_gametime);
+            }
         }
 
         public override void ModifyInterfaceLayers(List<GameInterfaceLayer> layers) {

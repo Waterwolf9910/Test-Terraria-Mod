@@ -16,13 +16,15 @@ using Terraria.Audio;
 using TestMod.UI.Common;
 using Terraria.GameContent.UI.Elements;
 using TestMod.Config;
+using TestMod.UI.Elements;
 
 namespace TestMod.UI.States {
-    internal class CheatUIState: UIState {
+    internal class CheatUIState: BaseUIState {
 
         private List<CheatItemSlot> Slots = new();
         private List<string> ItemNames = new();
         private DraggableUIPanel Panel;
+        private SearchBar SearchBar;
         private int lastpage = 0;
         
         public int ItemsPer {
@@ -34,6 +36,7 @@ namespace TestMod.UI.States {
 
         public void Unload() {
             Panel = null;
+            SearchBar = null;
             Slots.Clear();
             ItemNames.Clear();
         }
@@ -41,41 +44,68 @@ namespace TestMod.UI.States {
         public void ReloadItems() {
             for (var i = 1; i < TextureAssets.Item.Length; i++) {
                 var slot = new CheatItemSlot(i);
-                Slots.Add(slot);
-                ItemNames.Add(slot.GetItemModName());
+                if (!string.IsNullOrWhiteSpace(slot.GetItemName())) {
+                    Slots.Add(slot);
+                    ItemNames.Add(slot.GetItemModName());
+                }
             }
             
             this.Redraw();
         }
 
-        public void Redraw(int id = 0) {
+        public void OnSort(string filter) {
+            this.Redraw(this.lastpage, filter);
+            Console.WriteLine(filter);
+        }
+
+        private bool Redrawing = false;
+        public void Redraw(int id = 0, string filter = "") {
+            this.Redrawing = true;
+            //this.Panel.Remove();
+            //Panel = new DraggableUIPanel() {
+            //    HAlign = 0.5f,
+            //    VAlign = 0.5f,
+            //};
             Panel.RemoveAllChildren();
-            Panel.Height.Set(MainClientConfig.Instance.CUIHeight, 0);
-            Panel.Width.Set(MainClientConfig.Instance.CUIWidth, 0);
+            var height = MainClientConfig.Instance.CUIHeight;
+            var width = MainClientConfig.Instance.CUIWidth;
+            Panel.Height.Set(height, 0);
+            Panel.Width.Set(width, 0);
             Panel.SetPadding(0);
 
-            UIText text = new("Cheat Menu") {
-                HAlign = 0.5f
-            };
-            text.Top.Set(15, 0);
+            SearchBar.HAlign = 0f;
+            SearchBar.Top.Set(height * .02f, 0);
+            SearchBar.Left.Set(240, 0);
+            //SearchBar.Top.Set(width * -0.05f, 0);
+            SearchBar.Width.Set(width / 2, 0);
+            Panel.Append(SearchBar);
+
+            UIText text = new("Cheat Menu");
+            text.Left.Set(20, 0);
+            text.Top.Set(height * .027f, 0);
             Panel.Append(text);
 
-            var spacing = 12;
-            var y = MainClientConfig.Instance.CUIHeight - text.Height.Pixels - spacing;
-            var yoffset = spacing + text.Height.Pixels + 30;
-            var slot = new CheatItemSlot(0);
+            var spacing = height * .019f;
+            var y = height - SearchBar.Height.Pixels - spacing;
+            //var y = height - text.Height.Pixels - spacing;
+            var yoffset = SearchBar.Top.Pixels + SearchBar.Height.Pixels + spacing;
+            //var yoffset = spacing + text.Height.Pixels + spacing * 2;
+            var slot = CheatItemSlot.Default;
+            filter = string.IsNullOrWhiteSpace(filter) ? _old_filter : filter;
+            var _slots = this.Slots.FindAll((_slot) => _slot.GetItemName().ToLower().StartsWith(filter));
             ItemsPer = 0;
             while (y > slot.Height.Pixels + spacing) {
                 float x = MainClientConfig.Instance.CUIWidth - spacing;
-                float xoffset = spacing + text.Width.Pixels + 15;
+                float xoffset = spacing;
+                //float xoffset = spacing + text.Width.Pixels + 18;
                 while (x > slot.Width.Pixels) {
                     ++ItemsPer;
                     x -= slot.Width.Pixels + spacing;
-                    if (id >= Slots.Count) {
+                    if (id >= _slots.Count) {
                         continue;
                     }
 
-                    slot = Slots[id++];
+                    slot = _slots[id++];
                     slot.Top.Set(yoffset, 0);
                     slot.Left.Set(xoffset, 0);
                     xoffset += slot.Width.Pixels + spacing;
@@ -85,6 +115,9 @@ namespace TestMod.UI.States {
                 yoffset += slot.Height.Pixels + spacing;
                 y -= slot.Height.Pixels + spacing;
             }
+            
+            this.Redrawing = false;
+            //this.Append(Panel);
         }
 
         public void TurnLeft() {
@@ -95,26 +128,47 @@ namespace TestMod.UI.States {
             this.SetPage(Math.Min(Slots.Count / ItemsPer, lastpage + 1));
         }
 
+        private string _old_filter = "";
         public void SetPage(int page = 0) {
-            this.Redraw(ItemsPer * page);
+            this.Redraw(ItemsPer * page, _old_filter);
             lastpage = page;
         }
 
         public override void OnInitialize() {
             base.OnInitialize();
+            //var _panel = new UIPanel();//Main.screen
             Panel = new DraggableUIPanel() {
                 HAlign = 0.5f,
                 VAlign = 0.5f,
             };
 
+            SearchBar = new SearchBar() {
+                HAlign = 0.5f,
+            };
+
+            SearchBar.OnChange += this.OnSort;
+
             this.Append(Panel);
+        }
+
+        public override void ExecuteRecursively(UIElementAction action) {
+            if (!this.Redrawing) {
+                base.ExecuteRecursively(action);
+            }
+        }
+
+        public override void PostUpdateInput(GameTime gameTime) {
+            if (!this.Redrawing) {
+                base.PostUpdateInput(gameTime);
+            }    
         }
     }
 
     // Draw Code Taken From https://github.com/JavidPack/CheatSheet/blob/1.4/Menus/Slot.cs and Terrara.UI.UIImageButton
     internal class CheatItemSlot: UIElement {
 
-        public static Asset<Texture2D> Background;
+        public static CheatItemSlot Default { get; } = new(0);
+        protected static Asset<Texture2D> Background;
 
         Item Item {
             get; init;
@@ -125,6 +179,7 @@ namespace TestMod.UI.States {
             Background = background;
             this.Height.Set(Background.Height(), 0);
             this.Width.Set(Background.Width(), 0);
+            Task.Run(() => { Main.instance.LoadItem(item.type); });
         }
 
         public CheatItemSlot(Item item) : this(TextureAssets.InventoryBack15, item) { }
@@ -132,6 +187,10 @@ namespace TestMod.UI.States {
         public CheatItemSlot(Asset<Texture2D> background, int type) : this(background, item: new(type)) { }
 
         public CheatItemSlot(int type) : this(item: new(type)) { }
+
+        public string GetItemName() {
+            return Item?.Name;
+        }
 
         public override void Click(UIMouseEvent evt) {
             base.Click(evt);
@@ -193,7 +252,7 @@ namespace TestMod.UI.States {
         protected override void DrawSelf(SpriteBatch spriteBatch) {
 
             var dimentions = GetDimensions().Position();
-            Main.instance.LoadItem(Item.type);
+            //Main.instance.LoadItem(Item.type);
 
             spriteBatch.Draw(Background.Value, dimentions, Color.White);
 
